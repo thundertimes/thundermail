@@ -1,0 +1,97 @@
+# Thundermail Configuration
+# Copy this to ~/.config/thundermail/config.toml
+
+[account]
+# Email configuration
+email = "your.email@example.com"
+display_name = "Your Name"
+
+# IMAP settings
+imap_server = "imap.example.com"
+imap_port = 993
+use_imap_tls = true
+
+# SMTP settings
+smtp_server = "smtp.example.com"
+smtp_port = 587
+use_smtp_tls = true
+
+# Authentication
+# Use OAuth2 when possible for better security
+use_oauth2 = false
+
+[ai]
+# AI Provider: "ollama" or "venice"
+provider = "ollama"
+
+[ai.ollama]
+# Local Ollama configuration
+base_url = "http://localhost:11434"
+model = "llama2"
+temperature = 0.7
+
+[ai.venice]
+# Venice AI configuration (for cloud inference)
+# Get your API key from https://venice.ai
+api_key = "your-venice-api-key"
+model = "venice-llama-3"
+
+[privacy]
+# Privacy settings
+enabled = true
+
+# Strip tracking pixels from emails
+strip_trackers = true
+
+# Redact personally identifiable information
+redact_pii = true
+
+# Mask MUA headers to prevent fingerprinting
+mask_mua = true
+
+# Force UTC dates
+force_utc = true
+
+[privacy.crypto]
+# Cryptography settings
+forward_secrecy = true
+key_rotation_hours = 24
+require_mdc = true
+
+[network]
+# Network settings
+
+# Use Tor/SOCKS5 proxy
+use_proxy = false
+
+# Proxy type: "socks5" or "tor"
+proxy_type = "tor"
+proxy_host = "127.0.0.1"
+proxy_port = 9050
+
+# Force TLS for all connections
+force_tls = true
+
+# Verify SSL certificates (disable only for testing!)
+verify_certificates = true
+
+[database]
+# Local database settings
+path = "~/.local/share/thundermail/thundermail.db"
+encrypted = true
+
+[search]
+# Search index settings
+index_path = "~/.local/share/thundermail/search_index"
+encrypted = true
+
+[ui]
+# User interface settings
+theme = "dark"  # "dark" or "light"
+show_sidebar = true
+font_size = 14.0
+
+[logging]
+# Logging configuration
+level = "info"  # "trace", "debug", "info", "warn", "error"
+path = "~/.local/share/thundermail/logs"
