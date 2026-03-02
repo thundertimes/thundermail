@@ -6,9 +6,13 @@
 
 mod app;
 mod theme;
+mod sidebar;
+mod onboarding;
 
 pub use app::ThundermailApp;
 pub use theme::Theme;
+pub use sidebar::{Sidebar, FolderItem, FolderType};
+pub use onboarding::{OnboardingState, OnboardingStep, AutoConfig, AutoConfigService, ConfigSource};
 
 use crate::error::{Result, ThundermailError};
 use serde::{Deserialize, Serialize};

@@ -8,10 +8,12 @@
 mod rfc9788;
 mod pgp;
 mod ephemeral;
+pub mod gpg_keys;
 
 pub use rfc9788::Rfc9788;
 pub use pgp::Pgp;
 pub use ephemeral::EphemeralKeyManager;
+pub use gpg_keys::{GpgKeyManager, GpgKey, Attachment};
 
 use crate::error::{Result, ThundermailError};
 use serde::{Deserialize, Serialize};

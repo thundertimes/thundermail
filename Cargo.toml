@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 # Async Runtime
 tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 
 # IMAP/SMTP Protocol
 async-native-tls = "0.5"
@@ -34,7 +35,7 @@ tokio-socks = "0.5"
 rustls = "0.21"
 
 # AI Engine
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "blocking"] }
 
 # UI (egui)
 egui = "0.24"
@@ -54,6 +55,7 @@ regex = "1.10"
 lazy_static = "1.4"
 parking_lot = "0.12"
 directories = "5"
+dirs = "5"
 rand = "0.8"
 
 [dev-dependencies]
