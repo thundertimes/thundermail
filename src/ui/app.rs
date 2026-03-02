@@ -6,7 +6,7 @@
 
 use eframe::egui::{self, Widget};
 use super::{Theme, Sidebar, FolderType, OnboardingState, OnboardingStep, AutoConfig};
-use crate::core::{Session, Account};
+use crate::core::{Session, Account, Email};
 use crate::crypto::gpg_keys::{GpgKeyManager, Attachment};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -37,6 +37,12 @@ pub struct ThundermailApp {
     compose_attachments: Vec<Attachment>,
     /// IMAP/SMTP Session
     session: Option<Session>,
+    /// Fetched emails cache
+    emails: Vec<Email>,
+    /// Currently selected email (for viewing)
+    selected_email: Option<Email>,
+    /// Is loading emails
+    is_loading: bool,
     /// Connection test result
     connection_status: ConnectionTestResult,
     /// GPG key attached status
@@ -90,6 +96,9 @@ impl ThundermailApp {
             compose_body: String::new(),
             compose_attachments: Vec::new(),
             session: None,
+            emails: Vec::new(),
+            selected_email: None,
+            is_loading: false,
             connection_status: ConnectionTestResult {
                 imap_success: false,
                 smtp_success: false,
@@ -334,10 +343,42 @@ impl ThundermailApp {
         
         if can_connect {
             if ui.button("Connect Account").clicked() {
-                self.has_account = true;
-                self.account_email = self.onboarding.email.clone();
-                self.view = AppView::Inbox;
-                self.sidebar.select_folder(FolderType::Inbox);
+                // Create account from onboarding config
+                let config = self.onboarding.auto_config.as_ref().unwrap();
+                let account = Account::new(
+                    self.onboarding.email.clone(),
+                    config.imap_server.clone(),
+                    config.smtp_server.clone(),
+                );
+                
+                // Create session with account
+                let mut session = Session::new(account);
+                
+                // Try to connect IMAP synchronously (using block_in_place)
+                self.is_loading = true;
+                let result = tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        session.connect_imap().await
+                    })
+                });
+                
+                if result.is_ok() {
+                    // Fetch initial emails
+                    let folder = "INBOX";
+                    let fetched_emails = tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            session.fetch_emails(folder, 20).await.unwrap_or_default()
+                        })
+                    });
+                    self.emails = fetched_emails;
+                    
+                    self.session = Some(session);
+                    self.has_account = true;
+                    self.account_email = self.onboarding.email.clone();
+                    self.view = AppView::EmailList;
+                    self.sidebar.select_folder(FolderType::Inbox);
+                }
+                self.is_loading = false;
             }
         }
         
@@ -727,30 +768,183 @@ impl ThundermailApp {
         
         ui.add_space(10.0);
         
+        // Fetch folder name string for email retrieval
+        let folder_str = match self.sidebar.selected() {
+            Some(FolderType::Inbox) => "INBOX",
+            Some(FolderType::Sent) => "Sent",
+            Some(FolderType::Drafts) => "Drafts",
+            Some(FolderType::Spam) => "Spam",
+            Some(FolderType::Trash) => "Trash",
+            Some(FolderType::Archive) => "Archive",
+            Some(FolderType::Custom) => "Custom",
+            None => "INBOX",
+        };
+        
+        // Refresh button
+        ui.horizontal(|ui| {
+            if ui.button("🔄 Refresh").clicked() {
+                if let Some(ref mut session) = self.session {
+                    self.is_loading = true;
+                    let fetched = tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            session.fetch_emails(folder_str, 20).await.unwrap_or_default()
+                        })
+                    });
+                    self.emails = fetched;
+                    self.is_loading = false;
+                }
+            }
+        });
+        
+        ui.add_space(10.0);
+        
+        // Show loading indicator
+        if self.is_loading {
+            ui.spinner();
+            ui.label("Loading emails...");
+            ui.add_space(10.0);
+        }
+        
+        // Clone emails for display to avoid borrow issues
+        let emails_clone: Vec<Email> = self.emails.clone();
+        let has_emails = !emails_clone.is_empty();
+        let has_session = self.session.is_some();
+        
         // Email list
         egui::ScrollArea::vertical().show(ui, |ui| {
-            // Placeholder emails
-            for i in 0..5 {
-                egui::Frame::default()
-                    .fill(egui::Color32::from_gray(40))
-                    .rounding(4.0)
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("★");
-                            ui.label(egui::RichText::new(format!("Sender {}", i)).strong());
-                            ui.label(" - ");
-                            ui.label("Sample Subject Line");
-                        });
-                        ui.label(egui::RichText::new("Preview of the email body text...").italics());
-                    });
+            if !has_emails {
+                ui.label("No emails in this folder.");
+                ui.add_space(10.0);
                 
-                ui.add_space(5.0);
+                if ui.button("Send Test Email").clicked() {
+                    self.view = AppView::Compose;
+                }
+            } else {
+                // Display fetched emails
+                for email in emails_clone {
+                    let is_unread = !email.is_read;
+                    let bg_color = if is_unread {
+                        egui::Color32::from_gray(50)
+                    } else {
+                        egui::Color32::from_gray(35)
+                    };
+                    
+                    egui::Frame::default()
+                        .fill(bg_color)
+                        .rounding(4.0)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                // Star indicator
+                                if email.is_starred {
+                                    ui.label(egui::RichText::new("★").color(egui::Color32::from_rgb(255, 215, 0)));
+                                } else {
+                                    ui.label(" ");
+                                }
+                                
+                                // Unread indicator
+                                if is_unread {
+                                    ui.label(egui::RichText::new("●").small().color(egui::Color32::from_rgb(66, 135, 245)));
+                                }
+                                
+                                // From
+                                let from_name = email.from.split('<').next().unwrap_or(&email.from).trim();
+                                ui.label(egui::RichText::new(from_name).strong());
+                                
+                                ui.add_space(10.0);
+                                
+                                // Subject
+                                ui.label(&email.subject);
+                                
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    // Date
+                                    let date_str = email.date.format("%m/%d %H:%M").to_string();
+                                    ui.label(egui::RichText::new(date_str).small().color(egui::Color32::from_gray(150)));
+                                    
+                                    // Attachment indicator
+                                    if email.has_attachments {
+                                        ui.label("📎");
+                                    }
+                                });
+                            });
+                            
+                            // Preview
+                            ui.add_space(5.0);
+                            let preview = if email.body.len() > 80 {
+                                format!("{}...", &email.body[..80])
+                            } else {
+                                email.body.clone()
+                            };
+                            ui.label(egui::RichText::new(preview).italics().small().color(egui::Color32::from_gray(180)));
+                            
+                            // Click to view button
+                            ui.add_space(5.0);
+                            let email_clone = email.clone();
+                            if ui.button("View Email").clicked() {
+                                self.selected_email = Some(email_clone);
+                            }
+                        });
+                    
+                    ui.add_space(5.0);
+                }
             }
+            
+            ui.add_space(20.0);
             
             if ui.button("← Back").clicked() {
                 self.view = AppView::Inbox;
             }
+            
+            // Compose button
+            if ui.button("➤ Compose").clicked() {
+                self.view = AppView::Compose;
+            }
         });
+        
+        // Handle selected email popup separately
+        let selected = self.selected_email.clone();
+        if let Some(email) = selected {
+            let mut open = true;
+            egui::Window::new("Email")
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .open(&mut open)
+                .show(ui.ctx(), |ui| {
+                    ui.heading(&email.subject);
+                    
+                    ui.add_space(10.0);
+                    
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("From:").strong());
+                        ui.label(&email.from);
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("To:").strong());
+                        ui.label(&email.to);
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Date:").strong());
+                        ui.label(email.date.format("%Y-%m-%d %H:%M:%S UTC").to_string());
+                    });
+                    
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+                    
+                    // Email body
+                    ui.label(&email.body);
+                    
+                    ui.add_space(20.0);
+                    
+                    if ui.button("Close").clicked() {
+                        self.selected_email = None;
+                    }
+                });
+            
+            if !open {
+                self.selected_email = None;
+            }
+        }
     }
 }
 
