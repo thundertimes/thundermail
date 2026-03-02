@@ -6,6 +6,15 @@ authors = ["thundertimes"]
 license = "MIT"
 description = "A high-performance, Sovereign email client in Rust"
 
+[package.metadata.bundle]
+name = "Thundermail"
+identifier = "org.thundertimes.thundermail"
+version = "0.2.0"
+copyright = "Copyright (c) 2024 Thundertimes"
+category = "productivity"
+short_description = "A high-performance, Sovereign email client in Rust"
+long_description = "Thundermail is a secure, privacy-focused email client built with Rust and egui. It features end-to-end encryption, AI-powered categorization, and a modern native interface."
+
 [lib]
 name = "thundermail"
 path = "src/lib.rs"
@@ -61,6 +70,7 @@ rand = "0.8"
 
 [dev-dependencies]
 tempfile = "3"
+cargo-bundle = "0.9"
 
 [profile.release]
 panic = "abort"
@@ -91,3 +101,7 @@ rustflags = ["-C", "link-arg=-mmacosx-version-min=10.15"]
 
 [workspace]
 members = []
+
+[dependencies.winapi]
+version = "0.3"
+features = ["winuser"]

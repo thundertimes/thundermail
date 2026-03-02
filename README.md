@@ -126,6 +126,52 @@ thundermail/
 
 ---
 
+## 📂 Data Storage & Database Locations
+
+Thundermail stores all data locally with encryption. The encrypted SQLite database and search index are stored in platform-specific locations following each operating system's conventions.
+
+### Database Location by Operating System
+
+| Operating System | Database Path |
+|------------------|---------------|
+| **Linux** | `~/.local/share/thundermail/thundermail.db` |
+| **macOS** | `~/.local/share/thundermail/thundermail.db` |
+| **Windows** | `%LOCALAPPDATA%\thundermail\thundermail.db` |
+
+### Search Index Location by Operating System
+
+| Operating System | Search Index Path |
+|------------------|-------------------|
+| **Linux** | `~/.local/share/thundermail/search_index` |
+| **macOS** | `~/.local/share/thundermail/search_index` |
+| **Windows** | `%LOCALAPPDATA%\thundermail\search_index` |
+
+### Logs Location by Operating System
+
+| Operating System | Logs Path |
+|------------------|------------|
+| **Linux** | `~/.local/share/thundermail/logs` |
+| **macOS** | `~/.local/share/thundermail/logs` |
+| **Windows** | `%LOCALAPPDATA%\thundermail\logs` |
+
+### Configuration
+
+The default database location can be customized in your `config.toml`:
+
+```toml
+[database]
+path = "~/.local/share/thundermail/thundermail.db"
+encrypted = true
+
+[search]
+index_path = "~/.local/share/thundermail/search_index"
+encrypted = true
+
+[logging]
+path = "~/.local/share/thundermail/logs"
+```
+
+
 ## 🤝 Contributing
 
 We welcome contributors who believe in the right to private communication. Please read our **[SECURITY.md](https://www.google.com/search?q=./SECURITY.md)** and **[ARCHITECTURE.md](https://www.google.com/search?q=./ARCHITECTURE.md)** before submitting pull requests.
