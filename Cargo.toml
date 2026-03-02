@@ -12,8 +12,9 @@ identifier = "org.thundertimes.thundermail"
 version = "0.2.0"
 copyright = "Copyright (c) 2024 Thundertimes"
 category = "productivity"
-short_description = "A high-performance, Sovereign email client in Rust"
-long_description = "Thundermail is a secure, privacy-focused email client built with Rust and egui. It features end-to-end encryption, AI-powered categorization, and a modern native interface."
+short_description = "A high-performance, Sovereign email client"
+long_description = "Thundermail is a secure, privacy-focused email client built with Rust and egui."
+icon = ["resources/icon.png"]
 
 [lib]
 name = "thundermail"
@@ -35,7 +36,6 @@ lettre = { version = "0.10", features = ["tokio1-native-tls"] }
 
 # Cryptography
 zeroize = { version = "1", features = ["derive"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
 
 # Database & Search
 rusqlite = { version = "0.31", features = ["bundled"] }
@@ -67,6 +67,7 @@ parking_lot = "0.12"
 directories = "5"
 dirs = "5"
 rand = "0.8"
+image = { version = "0.24", default-features = false, features = ["png"] }
 
 [dev-dependencies]
 tempfile = "3"
