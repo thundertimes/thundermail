@@ -60,6 +60,58 @@ Bash
 
     cp config.toml.example ~/.config/thundermail/config.toml 
 
+### Directory
+
+```
+thundermail/
+├── src/                        # ⚡ Main Native Rust Application
+│   ├── ai/                     # Private Intelligence Layer
+│   │   ├── mod.rs              # MailAgent Trait & Provider Registry
+│   │   ├── ollama.rs           # Local Inference (Default)
+│   │   ├── venice.rs           # Private Cloud (Sanitized API)
+│   │   └── categorizer.rs      # LLM Prompting for Labels/Inbox Tabs
+│   ├── core/                   # The Mail Engine
+│   │   ├── mod.rs              
+│   │   ├── session.rs          # Async IMAP/SMTP State Machines
+│   │   ├── labels.rs           # Flat-DB Label Logic (X-GM-LABELS)
+│   │   └── worker.rs           # Background Task Loop (Sync & AI)
+│   ├── crypto/                 # Hardened Cryptography
+│   │   ├── mod.rs              
+│   │   ├── rfc9788.rs          # LAMPS Header Shrouding (Subject Masking)
+│   │   ├── pgp.rs              # Sequoia-OpenPGP Backend
+│   │   └── ephemeral.rs        # Sub-key Rotation & Zeroize Logic
+│   ├── db/                     # Encrypted Local Storage
+│   │   ├── mod.rs              
+│   │   ├── schema.rs           # SQLite (SQLx) Migrations
+│   │   └── search.rs           # Tantivy Encrypted Search Index
+│   ├── net/                    # Sovereign Networking
+│   │   ├── mod.rs              
+│   │   ├── proxy.rs            # SOCKS5/Tor Routing (MITRE T1090.004)
+│   │   └── tls.rs              # Rustls Config (No-CA-Leaks)
+│   ├── privacy/                # The Sanitization Gatekeeper
+│   │   ├── mod.rs              
+│   │   ├── sanitizer.rs        # PII Redaction & Tracking Pixel Stripping
+│   │   └── headers.rs          # MUA Fingerprint Masking
+│   ├── ui/                     # Native Immediate-Mode GUI (egui)
+│   │   ├── mod.rs              
+│   │   ├── app.rs              # Main eframe::App implementation
+│   │   ├── components/         # Custom Widgets (Sidebar, MailList, Composer)
+│   │   └── theme.rs            # Sovereign Visual Styles
+│   └── main.rs                 # Entry Point (Runtime & UI Launch)
+├── tests/                      # Integration & Security Audits
+│   ├── leaks.rs                # Validates no unauthorized network pings
+│   └── crypto_integrity.rs     # MDC Fail-hard & Forward Secrecy tests
+├── scripts/                    # Build & Hardening Tools
+│   └── harden-os.sh            # Setup for Tor/SOCKS5 system-wide
+├── .github/
+│   └── workflows/              # CI (Cargo Deny, Audit, & Fuzzing)
+├── ARCHITECTURE.md             # Modular isolation docs
+├── Cargo.toml                  # The "Sovereign" Dependency Stack
+├── config.toml.example         # Template for Private Cloud/Local AI
+├── README.md                   # Project Vision & Technical Spec
+└── SECURITY.md                 # Threat Model & Disclosure Policy
+```
+
 ---
 
 ## 🤝 Contributing
