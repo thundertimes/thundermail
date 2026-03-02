@@ -93,13 +93,23 @@ impl HeaderMask {
             "X-Mailer",
             "X-MS-Exchange-",
         ];
-        for key in headers.keys() {
-            for fp in &fingerprint_headers {
-                if key.starts_with(fp) {
-                    headers.remove(key);
-                    break;
+        
+        // Collect keys to remove
+        let keys_to_remove: Vec<String> = headers
+            .keys()
+            .filter(|key| {
+                for fp in &fingerprint_headers {
+                    if key.starts_with(fp) {
+                        return true;
+                    }
                 }
-            }
+                false
+            })
+            .cloned()
+            .collect();
+        
+        for key in keys_to_remove {
+            headers.remove(&key);
         }
     }
 
@@ -112,12 +122,22 @@ impl HeaderMask {
             "X-Received",
         ];
         
-        for key in headers.keys().cloned().collect::<Vec<_>>() {
-            for th in &tracking_headers {
-                if key.starts_with(th) {
-                    headers.remove(&key);
+        // Collect keys to remove
+        let keys_to_remove: Vec<String> = headers
+            .keys()
+            .filter(|key| {
+                for th in &tracking_headers {
+                    if key.starts_with(th) {
+                        return true;
+                    }
                 }
-            }
+                false
+            })
+            .cloned()
+            .collect();
+        
+        for key in keys_to_remove {
+            headers.remove(&key);
         }
     }
 }

@@ -64,6 +64,10 @@ Bash
 
 ```
 thundermail/
+├── plugins-sdk/                # 🧩 Shared Plugin API (The "Contract")
+│   ├── src/
+│   │   ├── lib.rs              # Plugin Trait definitions
+│   │   └── types.rs            # Sanitized Mail & UI types
 ├── src/                        # ⚡ Main Native Rust Application
 │   ├── ai/                     # Private Intelligence Layer
 │   │   ├── mod.rs              # MailAgent Trait & Provider Registry
@@ -74,7 +78,8 @@ thundermail/
 │   │   ├── mod.rs              
 │   │   ├── session.rs          # Async IMAP/SMTP State Machines
 │   │   ├── labels.rs           # Flat-DB Label Logic (X-GM-LABELS)
-│   │   └── worker.rs           # Background Task Loop (Sync & AI)
+│   │   |── worker.rs           # Background Task Loop (Sync & AI)
+│   │   └── plugin_host.rs      # The "Loader" (Manages .so/.dll/.dylib)
 │   ├── crypto/                 # Hardened Cryptography
 │   │   ├── mod.rs              
 │   │   ├── rfc9788.rs          # LAMPS Header Shrouding (Subject Masking)
@@ -96,8 +101,13 @@ thundermail/
 │   │   ├── mod.rs              
 │   │   ├── app.rs              # Main eframe::App implementation
 │   │   ├── components/         # Custom Widgets (Sidebar, MailList, Composer)
-│   │   └── theme.rs            # Sovereign Visual Styles
+│   │   |── theme.rs            # Sovereign Visual Styles
+│   │   └── plugin_view.rs      # Egui hooks for plugin-provided widgets
 │   └── main.rs                 # Entry Point (Runtime & UI Launch)
+├── plugins/                    # 📂 User-defined plugins
+│   └── spam-filter-ai/         # Example: A Venice AI powered spam filter
+│       ├── Cargo.toml          # Defines crate-type = ["cdylib"]
+│       └── src/lib.rs
 ├── tests/                      # Integration & Security Audits
 │   ├── leaks.rs                # Validates no unauthorized network pings
 │   └── crypto_integrity.rs     # MDC Fail-hard & Forward Secrecy tests

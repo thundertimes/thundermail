@@ -78,7 +78,7 @@ impl Rfc9788 {
         // Replace shrouded headers with generic values
         for header in &self.config.shrouded_headers {
             if let Some(value) = headers.get(header) {
-                let shrouded_value = self.shroud_value(header, value);
+                let shrouded_value = self.shroud_value(header, &value);
                 shrouded.insert(header.clone(), shrouded_value);
             }
         }

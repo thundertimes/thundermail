@@ -106,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    #[test]() {
+    fn test_sanitize_phone() {
         let sanitizer = Sanitizer::default();
         
         let text = "Call me at 555-123-4567";

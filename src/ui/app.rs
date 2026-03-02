@@ -70,11 +70,11 @@ impl eframe::App for ThundermailApp {
         });
 
         // Show main content
-        egui::CentralPanel::default().show(ctx, |_ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
             match self.view {
                 AppView::Inbox => {
                     // Placeholder for inbox
-                    egui::ScrollArea::vertical().show(_ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.heading("Inbox");
                         ui.label("No emails yet.");
                         ui.label("Thundermail is ready to receive your sovereign communications.");
