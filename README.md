@@ -4,6 +4,8 @@
 
 In an era of pervasive email metadata harvesting and the vulnerabilities exposed by research like `gpg.fail`, Thundermail implements the most aggressive privacy standards from the `user.js` and `12bytes` to ensure your communication remains truly yours.
 
+We recommend [forwardemail](https://forwardemail.net/en/blog/docs/why-open-source-email-security-privacy#individually-encrypted-sqlite-mailboxes) as the server.
+
 ---
 
 ## 🛡️ The Sovereign Standard
