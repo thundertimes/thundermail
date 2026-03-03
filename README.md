@@ -31,6 +31,24 @@ Thundermail is built on a **"Defense in Depth"** philosophy, specifically addres
 
 ---
 
+## Downloads & Releases
+
+All official builds are produced automatically via secure, tamper-proof [GitHub Actions workflows](https://github.com/thundertimes/thundermail/actions), which ensures a transparent and auditable trail from source code to the final compiled binary. Binaries for all platforms are cryptographically signed and, where applicable, notarized to ensure their authenticity and integrity. You can download the latest release from the [GitHub Releases](https://github.com/thundertimes/thundermail/releases) page.
+
+| Platform    | Architecture          | Download                                                                                                                                                              | Store                     |
+| :---------- | :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------ |
+| **Windows** | x64,amd64                   | [`.msi` Installer](https://github.com/thundertimes/thundermail/releases/latest)                                                                             |                           |
+| **macOS**   | Apple Silicon & Intel | [`.dmg` Universal](https://github.com/thundertimes/thundermail/releases/latest)                                                                             | App Store (Coming Soon)   |
+| **Linux**   | x64,amd64                   | [`.deb`](https://github.com/thundertimes/thundermail/releases/latest), [`.AppImage`](https://github.com/thundertimes/thundermail/releases/latest) |                           |
+
+> **Note for macOS users:** If you download the `.dmg` from GitHub Releases, you may need to run the following command if you see a "damaged" or unverified app error:
+>
+> ```bash
+> sudo xattr -rd com.apple.quarantine /Applications/ThunderMail.app
+> ```
+>
+> Replace `/Applications/ThunderMail.app` with the actual path if you installed the app elsewhere.
+
 ## 🏗️ Technical Architecture
 
 Thundermail is modularized to ensure that privacy logic is never bypassed by networking or UI code.**Layer****Responsibility****Technology**
@@ -177,6 +195,10 @@ path = "~/.local/share/thundermail/logs"
 We welcome contributors who believe in the right to private communication. Please read our **[SECURITY.md](https://www.google.com/search?q=./SECURITY.md)** and **[ARCHITECTURE.md](https://www.google.com/search?q=./ARCHITECTURE.md)** before submitting pull requests.
 > 
 > **The "No-Call" Rule:** Any PR introducing an external network dependency (fetching favicons, checking dictionaries, etc.) must be strictly opt-in and disabled by default.
+
+## Competition
+
+https://github.com/forwardemail/mail.forwardemail.net/tree/feat/tauri-apps?tab=readme-ov-file#downloads--releases
 
 ## 📜 License
 

@@ -1,0 +1,65 @@
+name: iOS Build (IPA)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  ios-ipa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add iOS targets
+        run: |
+          rustup target add aarch64-apple-ios
+          rustup target add aarch64-apple-ios-sim
+          rustup target add x86_64-apple-ios-sim
+
+      - name: Install cargo-lipo
+        run: cargo install cargo-lipo
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build iOS universal binary
+        run: |
+          # Initialize Cargo.toml for iOS if needed
+          cargo lipo --release
+
+      - name: Create artifact directory
+        run: mkdir -p release
+
+      - name: Copy iOS binaries
+        run: |
+          # Copy the universal binary created by cargo-lipo
+          cp target/universal/release/libthundermail.a release/libthundermail-ios-universal.a || true
+          
+          # Also copy individual targets
+          cp target/aarch64-apple-ios/release/libthundermail.a release/libthundermail-ios-arm64.a || true
+          cp target/aarch64-apple-ios-sim/release/libthundermail.a release/libthundermail-ios-sim-arm64.a || true
+          cp target/x86_64-apple-ios-sim/release/libthundermail.a release/libthundermail-ios-sim-x86_64.a || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thundermail-ios
+          path: release/*
+
+      # Note: Full IPA creation requires Xcode project and proper signing
+      # This workflow builds the Rust static libraries for iOS
+      # To create a proper IPA, you would need:
+      # 1. An Xcode project that links these libraries
+      # 2. Apple Developer signing certificates
+      # 3. Proper provisioning profiles

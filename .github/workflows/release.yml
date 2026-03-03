@@ -6,32 +6,27 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
 jobs:
-  build:
+  # ============================================
+  # Windows Builds (MSI x64, MSI arm64)
+  # ============================================
+  windows-builds:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            artifact: thundermail-linux-x64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            artifact: thundermail-linux-arm64
           - target: x86_64-pc-windows-gnu
-            os: windows-latest
-            artifact: thundermail-windows-x64.exe
+            artifact: thundermail-windows-x64
+            desc: Windows x64
           - target: aarch64-pc-windows-gnu
-            os: windows-latest
-            artifact: thundermail-windows-arm64.exe
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            artifact: thundermail-darwin-intel
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            artifact: thundermail-darwin-arm64
+            artifact: thundermail-windows-arm64
+            desc: Windows ARM64
 
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -42,11 +37,56 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Add mingw for Windows
-        if: matrix.os == 'windows-latest'
+      - name: Add mingw
         uses: r-LAZY-coder/rust-mingw@v1
         with:
           target: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build MSI
+        run: |
+          cargo bundle --target ${{ matrix.target }} --format msi --release -p thundermail
+
+      - name: Create artifact directory
+        run: mkdir release
+
+      - name: Copy MSI
+        run: |
+          Copy-Item "target\${{ matrix.target }}\release\bundle\msi\Thundermail.msi" "release\${{ matrix.artifact }}.msi"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/*.msi
+
+  # ============================================
+  # macOS Builds (DMG Intel, DMG Silicon)
+  # ============================================
+  macos-builds:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            artifact: thundermail-darwin-intel
+            desc: macOS Intel
+          - target: aarch64-apple-darwin
+            artifact: thundermail-darwin-arm64
+            desc: macOS Apple Silicon
+
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -55,22 +95,280 @@ jobs:
         run: |
           cargo build --release --target ${{ matrix.target }} -p thundermail
 
-      - name: Create artifact
+      - name: Create artifact directory
+        run: mkdir release
+
+      - name: Create app bundle
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/${{ matrix.target }}/release/thundermail.exe release/${{ matrix.artifact }}
-          else
-            cp target/${{ matrix.target }}/release/thundermail release/${{ matrix.artifact }}
+          BUNDLE_DIR="target/${{ matrix.target }}/release/bundle"
+          mkdir -p "$BUNDLE_DIR/Thundermail.app/Contents/MacOS"
+          mkdir -p "$BUNDLE_DIR/Thundermail.app/Contents/Resources"
+          
+          # Copy binary
+          cp "target/${{ matrix.target }}/release/thundermail" "$BUNDLE_DIR/Thundermail.app/Contents/MacOS/Thundermail"
+          
+          # Copy icon if exists
+          if [ -f "resources/icon.png" ]; then
+            cp resources/icon.png "$BUNDLE_DIR/Thundermail.app/Contents/Resources/"
           fi
+
+      - name: Create DMG
+        uses: create-dmg-action@v1
+        with:
+          dmg-dir: release
+          app-path: target/${{ matrix.target }}/release/bundle/Thundermail.app
+          volume-name: Thundermail-${{ matrix.desc }}
+          artifact-name: ${{ matrix.artifact }}.dmg
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: release/${{ matrix.artifact }}
+          path: release/*.dmg
 
+  # ============================================
+  # Linux Builds (DEB, RPM, AppImage, Arch)
+  # ============================================
+  linux-deb-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            artifact: thundermail-linux-x64
+            desc: Linux x86_64
+          - target: aarch64-unknown-linux-gnu
+            artifact: thundermail-linux-arm64
+            desc: Linux ARM64
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+          # Install cross compilers
+          sudo apt-get install -y \
+            gcc-x86-64-linux-gnu \
+            g++-x86-64-linux-gnu \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            export CC=x86_64-linux-gnu-gcc
+            export CXX=x86_64-linux-gnu-g++
+          else
+            export CC=aarch64-linux-gnu-gcc
+            export CXX=aarch64-linux-gnu-g++
+          fi
+          cargo build --release --target ${{ matrix.target }} -p thundermail
+
+      - name: Create DEB package
+        uses: jordansing/rust-deb@v1
+        with:
+          target: ${{ matrix.target }}
+          binary_name: thundermail
+          package_name: thundermail
+          maintainer: "thundertimes"
+          description: "A high-performance, Sovereign email client"
+          section: mail
+          priority: optional
+          arch: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && 'amd64' || 'arm64' }}
+
+      - name: Create artifact directory
+        run: mkdir -p release
+
+      - name: Copy DEB
+        run: |
+          if [ -f "target/${{ matrix.target }}/release/deb/thundermail.deb" ]; then
+            cp "target/${{ matrix.target }}/release/deb/thundermail.deb" "release/${{ matrix.artifact }}.deb"
+          else
+            # Fallback: copy binary
+            cp "target/${{ matrix.target }}/release/thundermail" "release/${{ matrix.artifact }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-deb
+          path: release/${{ matrix.artifact }}.deb
+
+  linux-rpm-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            artifact: thundermail-linux-x64
+            desc: Linux x86_64
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-x86-64-linux-gnu \
+            g++-x86_64-linux-gnu \
+            rpm
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          export CC=x86_64-linux-gnu-gcc
+          export CXX=x86_64-linux-gnu-g++
+          cargo build --release --target ${{ matrix.target }} -p thundermail
+
+      - name: Create RPM spec file
+        run: |
+          mkdir -p rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          
+          cat > rpmbuild/SPECS/thundermail.spec << 'EOF'
+Name:           thundermail
+Version:        0.2.0
+Release:        1%{?dist}
+Summary:        A high-performance, Sovereign email client
+License:        MIT
+URL:            https://github.com/thundertimes/thundermail
+BuildArch:      x86_64
+
+%description
+Thundermail is a secure, privacy-focused email client built with Rust and egui.
+
+%prep
+# No prep needed for binary package
+
+%build
+# Already built
+
+%install
+mkdir -p %{buildroot}/usr/bin
+mkdir -p %{buildroot}/usr/share/applications
+mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+install -m 755 target/x86_64-unknown-linux-gnu/release/thundermail %{buildroot}/usr/bin/thundermail
+
+%files
+/usr/bin/thundermail
+
+%changelog
+* Mon Mar 03 2026 thundertimes <contact@thundertimes.com> - 0.2.0
+- Initial release
+EOF
+
+      - name: Build RPM
+        run: |
+          export CC=x86_64-linux-gnu-gcc
+          export CXX=x86_64-linux-gnu-g++
+          rpmbuild --target x86_64-unknown-linux-gnu \
+            --define "_topdir $(pwd)/rpmbuild" \
+            -bb rpmbuild/SPECS/thundermail.spec
+
+      - name: Create artifact directory
+        run: mkdir -p release
+
+      - name: Copy RPM
+        run: |
+          if [ -f "rpmbuild/RPMS/x86_64/thundermail-0.2.0-1.x86_64.rpm" ]; then
+            cp "rpmbuild/RPMS/x86_64/thundermail-0.2.0-1.x86_64.rpm" "release/thundermail-linux-x64.rpm"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thundermail-linux-x64-rpm
+          path: release/*.rpm
+
+  linux-arch-build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Install cross compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-x86_64-linux-gnu \
+            g++-x86_64-linux-gnu
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          export CC=x86_64-linux-gnu-gcc
+          export CXX=x86_64-linux-gnu-g++
+          cargo build --release --target x86_64-unknown-linux-gnu -p thundermail
+
+      - name: Create Arch Linux PKGBUILD
+        run: |
+          mkdir -p release
+
+          cat > release/PKGBUILD << 'EOF'
+# Maintainer: thundertimes <contact@thundertimes.com>
+pkgname=thundermail
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="A high-performance, Sovereign email client"
+arch=('x86_64')
+url="https://github.com/thundertimes/thundermail"
+license=('MIT')
+depends=('openssl' 'gtk3')
+makedepends=('rust' 'cargo')
+
+build() {
+  cd "$srcdir/$pkgname"
+  export CC=x86_64-linux-gnu-gcc
+  cargo build --release --target x86_64-unknown-linux-gnu -p thundermail
+}
+
+package() {
+  install -Dm755 "$srcdir/$pkgname/target/x86_64-unknown-linux-gnu/release/thundermail" "$pkgdir/usr/bin/thundermail"
+}
+EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thundermail-linux-arch
+          path: release/PKGBUILD
+
+  # ============================================
+  # Create GitHub Release
+  # ============================================
   release:
-    needs: build
+    needs: [windows-builds, macos-builds, linux-deb-build, linux-rpm-build, linux-arch-build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -80,10 +378,14 @@ jobs:
         with:
           path: artifacts
 
+      - name: List artifacts
+        run: find artifacts -type f
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
           draft: true
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
