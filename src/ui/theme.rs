@@ -6,6 +6,76 @@
 
 use eframe::egui;
 
+/// Responsive breakpoints for different device sizes
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScreenSize {
+    /// Mobile: < 600px
+    Mobile,
+    /// Tablet: 600px - 1024px
+    Tablet,
+    /// Desktop: > 1024px
+    Desktop,
+}
+
+impl ScreenSize {
+    /// Detect screen size from context
+    pub fn from_ctx(ctx: &egui::Context) -> Self {
+        let screen_width = ctx.available_rect().width();
+        if screen_width < 600.0 {
+            Self::Mobile
+        } else if screen_width < 1024.0 {
+            Self::Tablet
+        } else {
+            Self::Desktop
+        }
+    }
+
+    /// Get sidebar width for this screen size
+    pub fn sidebar_width(&self) -> f32 {
+        match self {
+            Self::Mobile => 0.0,  // Hidden by default on mobile
+            Self::Tablet => 200.0,
+            Self::Desktop => 250.0,
+        }
+    }
+
+    /// Get max compose width for this screen size
+    pub fn compose_width(&self) -> f32 {
+        match self {
+            Self::Mobile => 400.0,
+            Self::Tablet => 600.0,
+            Self::Desktop => 800.0,
+        }
+    }
+
+    /// Get search box width for this screen size
+    pub fn search_width(&self) -> f32 {
+        match self {
+            Self::Mobile => 100.0,
+            Self::Tablet => 150.0,
+            Self::Desktop => 200.0,
+        }
+    }
+
+    /// Should show full header labels
+    pub fn show_full_labels(&self) -> bool {
+        match self {
+            Self::Mobile => false,
+            Self::Tablet => false,
+            Self::Desktop => true,
+        }
+    }
+
+    /// Font size scale factor
+    pub fn font_scale(&self) -> f32 {
+        match self {
+            Self::Mobile => 0.85,
+            Self::Tablet => 0.95,
+            Self::Desktop => 1.0,
+        }
+    }
+}
+
 /// Theme type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeType {

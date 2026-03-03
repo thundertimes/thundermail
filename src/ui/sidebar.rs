@@ -6,6 +6,7 @@
 
 use eframe::egui;
 use serde::{Deserialize, Serialize};
+use super::ScreenSize;
 
 /// Sidebar folder item (like Gmail's default folders)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +78,8 @@ pub struct Sidebar {
     pub collapsed: bool,
     /// Sidebar width
     pub width: f32,
+    /// Is sidebar visible (for mobile toggle)
+    pub visible: bool,
 }
 
 impl Default for Sidebar {
@@ -86,6 +89,7 @@ impl Default for Sidebar {
             labels: Vec::new(),
             collapsed: false,
             width: 250.0,
+            visible: true,
         }
     }
 }
@@ -101,18 +105,64 @@ impl Sidebar {
         self.labels.push(FolderItem::new(name, icon, FolderType::Custom));
     }
 
-    /// Render the sidebar
+    /// Render the sidebar with responsive behavior
     pub fn show(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::left("sidebar")
-            .width_range(200.0..=350.0)
-            .default_width(self.width)
-            .show(ctx, |ui| {
-                self.render_content(ui);
-            });
+        let screen_size = ScreenSize::from_ctx(ctx);
+        
+        // Adjust sidebar based on screen size
+        match screen_size {
+            ScreenSize::Mobile => {
+                // On mobile, sidebar is hidden by default, toggle via button
+                if self.visible {
+                    self.width = ctx.available_rect().width() * 0.8; // 80% of screen
+                    egui::SidePanel::left("sidebar")
+                        .width_range(self.width..=self.width)
+                        .show(ctx, |ui| {
+                            self.render_content(ui, &screen_size);
+                        });
+                }
+            }
+            ScreenSize::Tablet => {
+                // Tablet: narrower sidebar
+                self.width = screen_size.sidebar_width();
+                self.visible = true;
+                egui::SidePanel::left("sidebar")
+                    .width_range(self.width..=self.width)
+                    .show(ctx, |ui| {
+                        self.render_content(ui, &screen_size);
+                    });
+            }
+            ScreenSize::Desktop => {
+                // Desktop: full sidebar
+                self.width = screen_size.sidebar_width();
+                self.visible = true;
+                egui::SidePanel::left("sidebar")
+                    .width_range(200.0..=350.0)
+                    .default_width(self.width)
+                    .show(ctx, |ui| {
+                        self.render_content(ui, &screen_size);
+                    });
+            }
+        }
     }
 
-    /// Render sidebar content
-    fn render_content(&mut self, ui: &mut egui::Ui) {
+    /// Toggle sidebar visibility (for mobile)
+    pub fn toggle(&mut self) {
+        self.visible = !self.visible;
+    }
+
+    /// Show/hide sidebar
+    pub fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+
+    /// Check if sidebar is visible
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    /// Render sidebar content with responsive layout
+    fn render_content(&mut self, ui: &mut egui::Ui, screen_size: &ScreenSize) {
         // Header with compose button (Gmail style)
         ui.add_space(8.0);
         

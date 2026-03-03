@@ -5,7 +5,7 @@
 #![forbid(unsafe_code)]
 
 use eframe::egui::{self, Widget};
-use super::{Theme, Sidebar, FolderType, OnboardingState, OnboardingStep, AutoConfig};
+use super::{Theme, Sidebar, FolderType, OnboardingState, OnboardingStep, AutoConfig, ScreenSize};
 use crate::core::{Session, Account, Email};
 use crate::crypto::gpg_keys::{GpgKeyManager, Attachment};
 use std::sync::Arc;
@@ -493,25 +493,51 @@ impl ThundermailApp {
 
     /// Show main UI with sidebar
     fn show_main_ui(&mut self, ctx: &egui::Context) {
+        let screen_size = ScreenSize::from_ctx(ctx);
+        
         // Show sidebar
         self.sidebar.show(ctx);
 
-        // Top bar
+        // Top bar - responsive
         egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("⚡ Thundermail");
-                ui.separator();
+                // Mobile: hamburger menu button to toggle sidebar
+                if screen_size == ScreenSize::Mobile {
+                    if ui.button("☰").clicked() {
+                        self.sidebar.toggle();
+                    }
+                    ui.separator();
+                }
                 
-                // Account display
-                ui.label(egui::RichText::new(&self.account_email).small());
+                // App title - responsive size
+                let title_size = match screen_size {
+                    ScreenSize::Mobile => 16.0,
+                    ScreenSize::Tablet => 18.0,
+                    ScreenSize::Desktop => 20.0,
+                };
+                ui.heading(egui::RichText::new("⚡ Thundermail").size(title_size));
+                
+                // Only show separator and account on larger screens
+                if screen_size != ScreenSize::Mobile {
+                    ui.separator();
+                    
+                    // Account display
+                    ui.label(egui::RichText::new(&self.account_email).small());
+                }
                 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Search box (Gmail style)
-                    ui.add(egui::TextEdit::singleline(&mut self.search_query).desired_width(200.0).hint_text("Search emails"));
+                    // Search box - responsive width
+                    let search_width = screen_size.search_width();
+                    ui.add(egui::TextEdit::singleline(&mut self.search_query).desired_width(search_width).hint_text("Search"));
                     
                     ui.separator();
                     
-                    ui.label("🔒 Sovereign Mode Active");
+                    // Privacy indicator - hide text on mobile
+                    if screen_size.show_full_labels() {
+                        ui.label("🔒 Sovereign Mode Active");
+                    } else {
+                        ui.label("🔒").on_hover_text("Sovereign Mode Active");
+                    }
                 });
             });
         });
@@ -520,16 +546,16 @@ impl ThundermailApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.view {
                 AppView::Inbox => {
-                    self.render_inbox(ui);
+                    self.render_inbox(ui, &screen_size);
                 }
                 AppView::Compose => {
-                    self.render_compose(ui);
+                    self.render_compose(ui, &screen_size);
                 }
                 AppView::Settings => {
-                    self.render_settings(ui);
+                    self.render_settings(ui, &screen_size);
                 }
                 AppView::EmailList => {
-                    self.render_email_list(ui);
+                    self.render_email_list(ui, &screen_size);
                 }
                 AppView::Onboarding => {
                     // Should not happen
@@ -539,21 +565,27 @@ impl ThundermailApp {
     }
 
     /// Render inbox view
-    fn render_inbox(&mut self, ui: &mut egui::Ui) {
+    fn render_inbox(&mut self, ui: &mut egui::Ui, screen_size: &ScreenSize) {
+        // Responsive button layout
+        let button_height = match screen_size {
+            ScreenSize::Mobile => 32.0,
+            _ => 36.0,
+        };
+        
         ui.horizontal(|ui| {
-            if ui.button("📥 Inbox").clicked() {
+            if ui.add_sized([80.0, button_height], egui::Button::new("📥 Inbox")).clicked() {
                 self.sidebar.select_folder(FolderType::Inbox);
                 self.view = AppView::EmailList;
             }
-            if ui.button("📤 Sent").clicked() {
+            if ui.add_sized([80.0, button_height], egui::Button::new("📤 Sent")).clicked() {
                 self.sidebar.select_folder(FolderType::Sent);
                 self.view = AppView::EmailList;
             }
-            if ui.button("📝 Drafts").clicked() {
+            if ui.add_sized([80.0, button_height], egui::Button::new("📝 Drafts")).clicked() {
                 self.sidebar.select_folder(FolderType::Drafts);
                 self.view = AppView::EmailList;
             }
-            if ui.button("⚙️ Settings").clicked() {
+            if ui.add_sized([80.0, button_height], egui::Button::new("⚙️ Settings")).clicked() {
                 self.view = AppView::Settings;
             }
         });
@@ -562,7 +594,12 @@ impl ThundermailApp {
         
         // Email list placeholder
         egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.heading("Inbox");
+            let heading_size = match screen_size {
+                ScreenSize::Mobile => 18.0,
+                ScreenSize::Tablet => 20.0,
+                ScreenSize::Desktop => 24.0,
+            };
+            ui.heading(egui::RichText::new("Inbox").size(heading_size));
             ui.label("Your sovereign communications will appear here.");
             ui.label("");
             ui.label("No emails yet. Send yourself a test email to get started!");
@@ -576,25 +613,45 @@ impl ThundermailApp {
     }
 
     /// Render compose view
-    fn render_compose(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Compose New Email");
+    fn render_compose(&mut self, ui: &mut egui::Ui, screen_size: &ScreenSize) {
+        // Responsive heading
+        let heading_size = match screen_size {
+            ScreenSize::Mobile => 18.0,
+            ScreenSize::Tablet => 20.0,
+            ScreenSize::Desktop => 24.0,
+        };
+        ui.heading(egui::RichText::new("Compose New Email").size(heading_size));
         
         ui.add_space(10.0);
         
+        // Responsive field widths
+        let field_width = match screen_size {
+            ScreenSize::Mobile => 200.0,
+            ScreenSize::Tablet => 400.0,
+            ScreenSize::Desktop => 600.0,
+        };
+        
         ui.horizontal(|ui| {
             ui.label("To:");
-            ui.text_edit_singleline(&mut self.compose_to);
+            ui.add(egui::TextEdit::singleline(&mut self.compose_to).desired_width(field_width));
         });
         
         ui.horizontal(|ui| {
             ui.label("Subject:");
-            ui.text_edit_singleline(&mut self.compose_subject);
+            ui.add(egui::TextEdit::singleline(&mut self.compose_subject).desired_width(field_width));
         });
         
         ui.add_space(10.0);
         
         ui.label("Body:");
-        ui.add(egui::TextEdit::multiline(&mut self.compose_body).desired_rows(10));
+        
+        // Responsive text area
+        let body_rows = match screen_size {
+            ScreenSize::Mobile => 6,
+            ScreenSize::Tablet => 8,
+            ScreenSize::Desktop => 10,
+        };
+        ui.add(egui::TextEdit::multiline(&mut self.compose_body).desired_rows(body_rows).desired_width(field_width + 100.0));
         
         ui.add_space(10.0);
         
@@ -691,8 +748,14 @@ impl ThundermailApp {
     }
 
     /// Render settings view
-    fn render_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Settings");
+    fn render_settings(&mut self, ui: &mut egui::Ui, screen_size: &ScreenSize) {
+        // Responsive heading
+        let heading_size = match screen_size {
+            ScreenSize::Mobile => 18.0,
+            ScreenSize::Tablet => 20.0,
+            ScreenSize::Desktop => 24.0,
+        };
+        ui.heading(egui::RichText::new("Settings").size(heading_size));
         
         ui.add_space(20.0);
         
@@ -751,7 +814,14 @@ impl ThundermailApp {
     }
 
     /// Render email list view
-    fn render_email_list(&mut self, ui: &mut egui::Ui) {
+    fn render_email_list(&mut self, ui: &mut egui::Ui, screen_size: &ScreenSize) {
+        // Responsive heading
+        let heading_size = match screen_size {
+            ScreenSize::Mobile => 18.0,
+            ScreenSize::Tablet => 20.0,
+            ScreenSize::Desktop => 24.0,
+        };
+        
         // Folder header
         let folder_name = match self.sidebar.selected() {
             Some(FolderType::Inbox) => "📥 Inbox",
@@ -764,7 +834,7 @@ impl ThundermailApp {
             None => "📥 Inbox",
         };
         
-        ui.heading(folder_name);
+        ui.heading(egui::RichText::new(folder_name).size(heading_size));
         
         ui.add_space(10.0);
         
@@ -780,9 +850,14 @@ impl ThundermailApp {
             None => "INBOX",
         };
         
-        // Refresh button
+        // Refresh button - responsive
+        let button_height = match screen_size {
+            ScreenSize::Mobile => 28.0,
+            _ => 32.0,
+        };
+        
         ui.horizontal(|ui| {
-            if ui.button("🔄 Refresh").clicked() {
+            if ui.add_sized([80.0, button_height], egui::Button::new("🔄 Refresh")).clicked() {
                 if let Some(ref mut session) = self.session {
                     self.is_loading = true;
                     let fetched = tokio::task::block_in_place(|| {
@@ -808,7 +883,6 @@ impl ThundermailApp {
         // Clone emails for display to avoid borrow issues
         let emails_clone: Vec<Email> = self.emails.clone();
         let has_emails = !emails_clone.is_empty();
-        let has_session = self.session.is_some();
         
         // Email list
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -820,7 +894,7 @@ impl ThundermailApp {
                     self.view = AppView::Compose;
                 }
             } else {
-                // Display fetched emails
+                // Display fetched emails with responsive styling
                 for email in emails_clone {
                     let is_unread = !email.is_read;
                     let bg_color = if is_unread {
@@ -833,7 +907,7 @@ impl ThundermailApp {
                         .fill(bg_color)
                         .rounding(4.0)
                         .show(ui, |ui| {
-                            ui.horizontal(|ui| {
+                            ui.horizontal_wrapped(|ui| {
                                 // Star indicator
                                 if email.is_starred {
                                     ui.label(egui::RichText::new("★").color(egui::Color32::from_rgb(255, 215, 0)));
@@ -846,11 +920,15 @@ impl ThundermailApp {
                                     ui.label(egui::RichText::new("●").small().color(egui::Color32::from_rgb(66, 135, 245)));
                                 }
                                 
-                                // From
+                                // From - responsive text size
                                 let from_name = email.from.split('<').next().unwrap_or(&email.from).trim();
-                                ui.label(egui::RichText::new(from_name).strong());
+                                let from_size = match screen_size {
+                                    ScreenSize::Mobile => 12.0,
+                                    _ => 14.0,
+                                };
+                                ui.label(egui::RichText::new(from_name).strong().size(from_size));
                                 
-                                ui.add_space(10.0);
+                                ui.add_space(8.0);
                                 
                                 // Subject
                                 ui.label(&email.subject);
@@ -867,10 +945,15 @@ impl ThundermailApp {
                                 });
                             });
                             
-                            // Preview
+                            // Preview - responsive
                             ui.add_space(5.0);
-                            let preview = if email.body.len() > 80 {
-                                format!("{}...", &email.body[..80])
+                            let preview_len = match screen_size {
+                                ScreenSize::Mobile => 50,
+                                ScreenSize::Tablet => 65,
+                                ScreenSize::Desktop => 80,
+                            };
+                            let preview = if email.body.len() > preview_len {
+                                format!("{}...", &email.body[..preview_len])
                             } else {
                                 email.body.clone()
                             };

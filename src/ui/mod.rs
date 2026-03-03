@@ -10,7 +10,7 @@ mod sidebar;
 mod onboarding;
 
 pub use app::ThundermailApp;
-pub use theme::Theme;
+pub use theme::{Theme, ScreenSize};
 pub use sidebar::{Sidebar, FolderItem, FolderType};
 pub use onboarding::{OnboardingState, OnboardingStep, AutoConfig, AutoConfigService, ConfigSource};
 
